@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08131e" />
+    <title>City Life — Open World</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="game-canvas" aria-label="City Life 3D game"></canvas>
+
+      <div class="scanlines" aria-hidden="true"></div>
+      <div id="flash" aria-hidden="true"></div>
+
+      <header class="topbar hud-panel">
+        <div class="brand-lockup">
+          <div class="brand-mark"><span></span><span></span><span></span></div>
+          <div>
+            <p class="eyebrow">OPEN CITY // SECTOR 08</p>
+            <h1>CITY<span>LIFE</span></h1>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div class="district"><i></i><span id="district-name">MIRAGE HEIGHTS</span></div>
+          <button class="sound-toggle" id="sound-toggle" type="button" aria-label="Toggle ambience">◌</button>
+        </div>
+      </header>
+
+      <section class="player-card hud-panel">
+        <div class="card-head">
+          <div class="portrait"><div class="portrait-head"></div></div>
+          <div>
+            <p class="label">OPERATIVE</p>
+            <strong>JAX MERCER</strong>
+            <span class="level">LVL <b id="level">04</b></span>
+          </div>
+          <div class="cash"><span>FUNDS</span><strong id="money">$2,450</strong></div>
+        </div>
+        <div class="meter-row">
+          <span>HEALTH</span>
+          <div class="meter"><i id="health-bar"></i></div>
+          <b id="health-text">100</b>
+        </div>
+        <div class="meter-row heat-row">
+          <span>HEAT</span>
+          <div class="stars" id="heat-stars"><i></i><i></i><i></i><i></i><i></i></div>
+          <b id="heat-text">COLD</b>
+        </div>
+      </section>
+
+      <aside class="mission-panel hud-panel" id="mission-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">ACTIVE OPERATION</p><h2 id="mission-title">THE DOCKS ARE WAITING</h2></div>
+          <span class="mission-count" id="mission-count">01 / 03</span>
+        </div>
+        <p id="mission-description">Reach the Crimson Docks and bring down the harbor boss, Viper Kane.</p>
+        <div class="objective-line"><span class="objective-icon">◈</span><span id="objective-text">Go to Crimson Docks</span><b id="objective-distance">684m</b></div>
+        <div class="mission-progress"><i id="mission-progress"></i></div>
+        <button id="skip-mission" class="text-button" type="button">Cycle mission <span>→</span></button>
+      </aside>
+
+      <section class="boss-card hud-panel" id="boss-card">
+        <div class="boss-alert"><span>◆</span> BOSS IN RANGE</div>
+        <div class="boss-content">
+          <div class="boss-icon">V</div>
+          <div><p>VIPER KANE</p><div class="boss-health"><i id="boss-health"></i></div></div>
+          <b id="boss-health-text">100%</b>
+        </div>
+      </section>
+
+      <section class="minimap hud-panel">
+        <div class="minimap-head"><span>TACTICAL MAP</span><b id="map-zone">NORTHWEST</b></div>
+        <canvas id="map-canvas" width="220" height="160" aria-label="Mini map"></canvas>
+        <div class="map-key"><span><i class="yellow"></i> mission</span><span><i class="red"></i> raid / boss</span><span><i class="cyan"></i> vehicle</span></div>
+      </section>
+
+      <section class="weapon-panel hud-panel">
+        <div class="weapon-type"><span class="weapon-glyph">⌁</span><div><p id="weapon-name">VOLT PISTOL</p><small id="weapon-mode">SEMI-AUTO</small></div></div>
+        <div class="ammo"><b id="ammo-current">12</b><span>/</span><strong id="ammo-reserve">96</strong></div>
+        <div class="weapon-actions"><span><kbd>SPACE</kbd> FIRE</span><span><kbd>R</kbd> RELOAD</span><span><kbd>1–2</kbd> SWITCH</span></div>
+      </section>
+
+      <section class="vehicle-panel hud-panel" id="vehicle-panel">
+        <p class="eyebrow">FLEET ACCESS</p>
+        <div class="vehicle-title"><span class="vehicle-symbol" id="vehicle-symbol">⌬</span><div><strong id="vehicle-name">ON FOOT</strong><small id="vehicle-class">Explore the city</small></div></div>
+        <div class="vehicle-list"><span>CAR</span><span>BIKE</span><span>TRUCK</span><span>BUS</span><span>BOAT</span><span>AIR</span></div>
+      </section>
+
+      <div class="crosshair" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div id="message-stack" aria-live="polite"></div>
+      <div id="interaction-prompt" class="interaction-prompt"><kbd>E</kbd><span id="interaction-text">ENTER VEHICLE</span></div>
+
+      <footer class="controls">
+        <span><kbd>W/S</kbd> MOVE</span>
+        <span><kbd>A/D</kbd> STEER</span>
+        <span><kbd>SHIFT</kbd> BOOST</span>
+        <span><kbd>E</kbd> INTERACT</span>
+        <span><kbd>SPACE</kbd> FIRE</span>
+      </footer>
+
+      <div class="start-screen" id="start-screen">
+        <div class="start-grid"></div>
+        <div class="start-content">
+          <p class="eyebrow">WELCOME TO THE NEVERENDING CITY</p>
+          <h2>MAKE THE<br /><em>CITY</em> YOURS.</h2>
+          <p class="start-copy">Build your fortune across a living coastal city. Run raids, settle boss scores, and take any ride from street to sky.</p>
+          <button id="launch-button" type="button">ENTER CITY <span>↗</span></button>
+          <div class="start-features"><span>7 VEHICLE CLASSES</span><span>3 LIVE MISSIONS</span><span>RAIDABLE PROPERTIES</span></div>
+        </div>
+        <div class="start-tip"><b>FIELD NOTE</b> Every colored beacon is a story waiting to happen.</div>
+      </div>
+    </main>
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>
