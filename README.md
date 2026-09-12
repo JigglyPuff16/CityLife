@@ -22,4 +22,4 @@ Open `http://localhost:4173`.
 - `R` — reload
 - `1` / `2` — switch between pistol and SMG
 
-The city includes street vehicles, bike, SUV, truck, bus, boat, plane, and helicopter, plus mission beacons, a boss encounter, money rewards, gunplay, and raidable homes.
+The city places block buildings on clear plots, residences on dedicated lots, road vehicles in lanes or parking bays, a boat at the docks, and aircraft at the airfield. It includes street vehicles, bike, SUV, truck, bus, ice cream truck, boat, plane, and helicopter, plus mission beacons, a boss encounter, money rewards, gunplay, and raidable homes. The new `STATUS` meter begins at `00` and rises as you build your reputation.

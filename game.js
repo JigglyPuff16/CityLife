@@ -24,6 +24,7 @@ const ui = {
   heatStars: [...document.querySelectorAll('#heat-stars i')], heatText: document.querySelector('#heat-text'),
   title: document.querySelector('#mission-title'), description: document.querySelector('#mission-description'), objective: document.querySelector('#objective-text'), distance: document.querySelector('#objective-distance'), progress: document.querySelector('#mission-progress'), missionCount: document.querySelector('#mission-count'),
   weaponName: document.querySelector('#weapon-name'), weaponMode: document.querySelector('#weapon-mode'), ammoCurrent: document.querySelector('#ammo-current'), ammoReserve: document.querySelector('#ammo-reserve'),
+  statusBar: document.querySelector('#status-bar'), statusText: document.querySelector('#status-text'),
   vehiclePanel: document.querySelector('#vehicle-panel'), vehicleName: document.querySelector('#vehicle-name'), vehicleClass: document.querySelector('#vehicle-class'), vehicleSymbol: document.querySelector('#vehicle-symbol'),
   prompt: document.querySelector('#interaction-prompt'), promptText: document.querySelector('#interaction-text'),
   bossCard: document.querySelector('#boss-card'), bossHealth: document.querySelector('#boss-health'), bossHealthText: document.querySelector('#boss-health-text'),
@@ -37,7 +38,7 @@ const colors = {
   dark: 0x172a33, roof: 0x17333c, concrete: 0x66818a
 };
 const state = {
-  started: false, money: 2450, health: 100, heat: 0, level: 4, heading: 0.1, vehicle: null,
+  started: false, money: 2450, health: 100, heat: 0, status: 0, level: 4, heading: 0.1, vehicle: null,
   weapon: 0, ammo: [12, 30], reserve: [96, 180], reloading: false, missionIndex: 0,
   keys: {}, bullets: [], particles: [], time: 0, currentInteract: null, bossActive: false,
   lastShot: 0, lastDamage: 0, bossLastShot: 0, cameraKick: 0, mapDirty: 0
@@ -55,7 +56,7 @@ const missions = [
   },
   {
     title: 'A HOUSE WITH TEETH', description: 'Break into the marked villa. Grab the ledger before the crew arrives.',
-    objective: 'Raid the Sunset Villa', pos: new THREE.Vector3(116, 0, -116), kind: 'raid', progress: 53
+    objective: 'Raid the Sunset Villa', pos: new THREE.Vector3(160, 0, -142), kind: 'raid', progress: 53
   },
   {
     title: 'BLUE SKY GETAWAY', description: 'Take an aircraft from the airfield and fly the package past the coastal beacon.',
@@ -104,9 +105,19 @@ function makeGround() {
   box(22, .12, 425, mats.road, -161, .03, 8, false);
   box(70, .13, 150, mats.road, 154, .03, 150, false);
   for (let z = 91; z <= 211; z += 22) box(3, .04, 11, mats.marking, 154, .11, z, false);
+  // Service road: it links the dockside warehouse to the coastal highway instead of cutting through city blocks.
+  box(82, .12, 13, mats.road, -125, .03, 157, false);
+  for (let x = -160; x <= -92; x += 20) box(9, .04, 1, mats.marking, x, .11, 157, false);
   // Sidewalks
   [-120, 0, 120].forEach(x => { box(5, .09, 410, mats.pavement, x - 14.5, .04, 10, false); box(5, .09, 410, mats.pavement, x + 14.5, .04, 10, false); });
   [-120, 0, 120].forEach(z => { box(420, .09, 5, mats.pavement, 0, .04, z - 14.5, false); box(420, .09, 5, mats.pavement, 0, .04, z + 14.5, false); });
+}
+
+function makeParkingBay(x, z, w, d) {
+  box(w, .1, d, mats.pavement, x, .055, z, false);
+  const spaces = Math.max(2, Math.floor(w / 4));
+  for (let i = 1; i < spaces; i++) box(.12, .025, d - 2, mats.marking, x - w / 2 + (w / spaces) * i, .115, z, false);
+  box(w, .03, .16, mats.marking, x, .115, z - d / 2 + 1, false);
 }
 
 function makeBuilding(x, z, w, d, h, color, label = '') {
@@ -131,29 +142,43 @@ function makeBuilding(x, z, w, d, h, color, label = '') {
   g.position.set(x, 0, z); scene.add(g); return g;
 }
 
+function makeResidentialLot(x, z, front) {
+  box(43, .09, 39, mats.grassAlt, x, .025, z, false);
+  box(7, .1, 18, mats.pavement, x, .075, z + front * 22, false);
+  box(12, .16, 3.5, mats.concrete, x, .11, z + front * 15.4, false);
+  box(.35, 2.1, .35, mats.dark, x - 19, 1.05, z - 16, false);
+  box(.35, 2.1, .35, mats.dark, x + 19, 1.05, z - 16, false);
+  box(.35, 2.1, .35, mats.dark, x - 19, 1.05, z + 16, false);
+  box(.35, 2.1, .35, mats.dark, x + 19, 1.05, z + 16, false);
+  const pool = box(7, .12, 9, mats.water, x + 12, .1, z - 7, false);
+  pool.receiveShadow = true;
+}
+
 function makeCity() {
   const buildingSpecs = [
-    [-70,-70,29,31,39,0x5d737b],[-47,-76,22,25,28,0x777f72],[-75,-23,27,32,53,0x587881],[-42,-26,25,27,31,0x9b806e],
-    [-74,45,29,27,25,0x6a897e],[-41,51,24,33,44,0x57717c],[-78,96,27,29,55,0x71787b],[-43,100,26,25,31,0x937765],
-    [42,-75,29,34,56,0x747e84],[78,-75,31,25,36,0x5e7c7c],[42,-29,29,28,27,0x9e806b],[79,-27,32,29,62,0x5d7781],
-    [40,48,28,33,41,0x8d8171],[78,46,31,33,29,0x657c72],[41,95,28,27,69,0x5b727c],[79,96,31,25,48,0x927661],
-    [138,-75,31,30,42,0x68817f],[180,-75,31,30,28,0x81796d],[138,-29,30,27,37,0x6b8589],[180,-29,29,30,53,0x7d6c68],
-    [138,41,28,26,25,0x758773],[180,43,30,30,39,0x617a83]
+    // Every footprint sits inside a block, clear of the roads and sidewalks around it.
+    [-79,-77,25,30,39,0x5d737b],[-46,-78,23,28,28,0x777f72],[-79,-43,26,26,53,0x587881],[-46,-43,22,25,31,0x9b806e],
+    [-79,43,26,25,25,0x6a897e],[-46,43,23,26,44,0x57717c],[-79,78,26,25,55,0x71787b],[-46,78,22,25,31,0x937765],
+    [43,-77,26,30,56,0x747e84],[78,-78,25,28,36,0x5e7c7c],[43,-43,26,26,27,0x9e806b],[78,-43,25,25,62,0x5d7781],
+    [43,43,26,25,41,0x8d8171],[78,43,25,26,29,0x657c72],[43,78,26,25,69,0x5b727c],[78,78,25,25,48,0x927661],
+    [151,-77,25,30,42,0x68817f],[185,-78,23,28,28,0x81796d],[151,-43,25,26,37,0x6b8589],[185,-43,23,25,53,0x7d6c68],
+    [151,43,25,25,25,0x758773],[185,43,23,26,39,0x617a83],[151,78,25,25,46,0x6f7d78],[185,78,23,25,34,0x8a766d]
   ];
   buildingSpecs.forEach(s => makeBuilding(...s));
-  // Small villas around the map
-  makeVilla(112, -116, 'SUNSET VILLA', 900);
-  makeVilla(-125, -112, 'HARBOR HOUSE', 650);
-  makeVilla(95, 118, 'COASTAL HOME', 740);
-  makeVilla(-85, 139, 'RAIDABLE HOME', 560);
+  // Villas live on dedicated lots outside the dense centre, with a front drive to the nearest road.
+  makeVilla(-80, -163, 'HARBOR HOUSE', 650, 1);
+  makeVilla(160, -163, 'SUNSET VILLA', 900, 1);
+  makeVilla(59, 163, 'COASTAL HOME', 740, -1);
+  makeVilla(-76, 163, 'RAIDABLE HOME', 560, -1);
+  makeParkingBay(95, 20, 16, 17);
   // Docks
   for (let z = 72; z < 180; z += 33) { box(77, .5, 19, material(0x876c4e), -185, .12, z, false); box(2, 4, 2, mats.dark, -220, 2, z, false); box(2,4,2,mats.dark,-150,2,z,false); }
   for (let x = -211; x <= -160; x += 17) for (let z = 90; z <= 155; z += 30) box(11, 8, 7, material(0x9b6242), x, 4, z);
-  box(52, 17, 31, material(0x536d72), -123, 8.5, 133); box(37, 2, 4, mats.red, -123, 13, 149);
+  box(41, 17, 29, material(0x536d72), -83, 8.5, 181); box(30, 2, 4, mats.red, -83, 13, 166);
   // Airfield hangar
-  box(54, 19, 36, material(0x536f74), 205, 9.5, 158); box(56, 3, 3, mats.yellow, 205, 11, 177); box(12, .4, 12, mats.concrete, 139, .24, 84);
+  box(32, 19, 36, material(0x536f74), 207, 9.5, 158); box(34, 3, 3, mats.yellow, 207, 11, 177); box(12, .4, 12, mats.concrete, 204, .24, 110);
   // Trees and lamps scattered deterministically
-  const treePositions = [[-102,-165],[-83,-165],[-59,-154],[-25,-163],[25,-158],[55,-160],[104,-164],[174,-160],[-185,-160],[-185,-93],[-183,-30],[-186,33],[-185,202],[-108,175],[-55,176],[17,175],[88,177],[108,141],[108,79],[105,17],[105,-165],[180,105],[205,61],[205,15]];
+  const treePositions = [[-108,-176],[-55,-176],[-25,-163],[25,-158],[91,-166],[185,-160],[-185,-160],[-185,-93],[-183,-30],[-186,33],[-185,202],[-108,175],[-33,176],[17,175],[102,178],[108,141],[108,79],[105,17],[105,-165],[180,105],[205,61],[205,15]];
   treePositions.forEach(([x,z], i) => makeTree(x,z, 1 + (i % 3) * .16));
   [[-134,-120],[-134,0],[-134,120],[-14,-120],[-14,0],[-14,120],[106,-120],[106,0],[106,120],[-118,-135],[0,-135],[120,-135],[-118,-15],[0,-15],[120,-15],[-118,105],[0,105],[120,105]].forEach(([x,z]) => makeLamp(x,z));
 }
@@ -180,10 +205,10 @@ function makePlayer() {
 const player = makePlayer();
 
 function vehicleColor(type) {
-  return ({ car:0x39bcd2, bike:0xf4c64e, suv:0x5f7796, truck:0xd16947, bus:0xe0a94d, boat:0x51b7c7, plane:0xd7e5e1, heli:0x7b92a7 })[type] || 0x64e0e2;
+  return ({ car:0x39bcd2, bike:0xf4c64e, suv:0x5f7796, truck:0xd16947, bus:0xe0a94d, icecream:0xff789d, boat:0x51b7c7, plane:0xd7e5e1, heli:0x7b92a7 })[type] || 0x64e0e2;
 }
 function vehicleMeta(type) {
-  return ({car:['METRO COUPE','Street car','▱',20],bike:['STRIKE BIKE','Motorcycle','⌁',23],suv:['ARMORED SUV','All-terrain','▣',18],truck:['FREIGHT TRUCK','Heavy hauler','▰',15],bus:['CITY TRANSIT','Passenger bus','▰',14],boat:['NEON RUNNER','Speed boat','◒',24],plane:['SKYLINE JET','Fixed-wing aircraft','△',31],heli:['HELIOS 8','Rotorcraft','✣',28]})[type];
+  return ({car:['METRO COUPE','Street car','▱',20],bike:['STRIKE BIKE','Motorcycle','⌁',23],suv:['ARMORED SUV','All-terrain','▣',18],truck:['FREIGHT TRUCK','Heavy hauler','▰',15],bus:['CITY TRANSIT','Passenger bus','▰',14],icecream:['SUNDAE EXPRESS','Ice cream truck','✦',16],boat:['NEON RUNNER','Speed boat','◒',24],plane:['SKYLINE JET','Fixed-wing aircraft','△',31],heli:['HELIOS 8','Rotorcraft','✣',28]})[type];
 }
 function makeVehicle(type, x, z, rotation = 0) {
   const group = new THREE.Group(); const color = material(vehicleColor(type), { metalness: .2, roughness: .38 }); const dark = material(0x172d36, { metalness:.35, roughness:.2 });
@@ -198,6 +223,17 @@ function makeVehicle(type, x, z, rotation = 0) {
     [-.8,.8].forEach(px => { const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.32,.32,.14,10),dark);wheel.rotation.z=Math.PI/2;wheel.position.set(px,.46,1.1);group.add(wheel); });
   } else if (type === 'heli') {
     addPart(2.3,1.5,4.4,color,0,1.9,0); addPart(.65,.58,4.4,color,0,2.1,3.6); addPart(6.8,.12,.25,dark,0,4.15,0); addPart(.25,.1,6.8,dark,0,4.15,0); addPart(.8,.1,4.3,dark,0,.6,0);
+  } else if (type === 'icecream') {
+    const cream = material(0xfff6e8, { roughness: .48 });
+    const pink = material(0xff789d, { emissive: 0x491625, emissiveIntensity: .14 });
+    addPart(2.75, 1.2, 5.8, cream, 0, 1.03, 0);
+    addPart(2.48, 1.7, 3.25, color, 0, 2.18, .68);
+    addPart(2.35, .58, 1.32, dark, 0, 1.88, -1.73);
+    addPart(2.72, .2, .86, pink, 0, 2.65, -.88);
+    addPart(2.66, .16, .42, mats.yellow, 0, 3.2, .72);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(.43, 1.4, 8), material(0xd89b54)); cone.rotation.z = Math.PI; cone.position.set(0, 4.15, .58); cone.castShadow = true; group.add(cone);
+    const scoop = new THREE.Mesh(new THREE.SphereGeometry(.5, 10, 8), pink); scoop.position.set(0, 4.83, .58); scoop.castShadow = true; group.add(scoop);
+    [-1.12, 1.12].forEach(px => [-1.58, 1.58].forEach(pz => { const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.45,.45,.25,12),dark); wheel.rotation.z=Math.PI/2;wheel.position.set(px,.47,pz);wheel.castShadow=true;group.add(wheel); }));
   } else {
     const settings = type === 'bus' ? [3.2,2.0,7.6] : type === 'truck' ? [2.8,1.8,6.6] : type === 'suv' ? [2.45,1.35,4.75] : [2.15,1.15,4.1];
     const [w,h,d] = settings; addPart(w,h,d,color,0,1.02,0); addPart(w*.83,h*.65,d*.48,dark,0,1.82,-.43);
@@ -213,7 +249,9 @@ function makeVehicle(type, x, z, rotation = 0) {
 }
 
 function makeFleet() {
-  makeVehicle('car', -30, 17, -.5); makeVehicle('bike', 17, -22, .8); makeVehicle('suv', -137, -51, 0); makeVehicle('truck', 91, -18, Math.PI/2); makeVehicle('bus', 4, 73, 0); makeVehicle('boat', -219, 102, Math.PI); makeVehicle('plane', 153, 121, 0); makeVehicle('heli', 139, 85, .3);
+  // Surface vehicles use lanes or marked parking bays; water and air vehicles start at their appropriate facilities.
+  makeVehicle('car', -5, -54, 0); makeVehicle('bike', 5, -31, 0); makeVehicle('suv', -125, -52, 0); makeVehicle('truck', 78, 5, Math.PI / 2);
+  makeVehicle('bus', 5, 73, 0); makeVehicle('icecream', 95, 20, 0); makeVehicle('boat', -219, 102, Math.PI); makeVehicle('plane', 154, 121, 0); makeVehicle('heli', 204, 110, .3);
 }
 
 function makeRaidBeacon(pos, label, cash) {
@@ -223,7 +261,12 @@ function makeRaidBeacon(pos, label, cash) {
   const light = new THREE.PointLight(colors.red, 2.1, 18, 2); light.position.y=5;group.add(light);group.position.copy(pos);scene.add(group);
   const raid = { pos, label, cash, group, raided:false, kind:'raid' }; raids.push(raid);return raid;
 }
-function makeVilla(x,z,label,cash) { makeBuilding(x,z,31,27,10,0xb88f73,label); return makeRaidBeacon(new THREE.Vector3(x,0,z+18),label,cash); }
+function makeVilla(x,z,label,cash,front = 1) {
+  makeResidentialLot(x, z, front);
+  const home = makeBuilding(x, z, 31, 27, 10, 0xb88f73, label);
+  if (front < 0) home.rotation.y = Math.PI;
+  return makeRaidBeacon(new THREE.Vector3(x, 0, z + front * 21), label, cash);
+}
 
 function makeBoss() {
   const group = new THREE.Group();
@@ -264,6 +307,7 @@ function formatMoney(value) { return '$' + Math.floor(value).toLocaleString('en-
 function updateHUD() {
   ui.money.textContent = formatMoney(state.money); ui.healthBar.style.width = `${state.health}%`;ui.healthText.textContent = Math.ceil(state.health);
   ui.heatStars.forEach((star,i) => star.classList.toggle('active',i<state.heat));ui.heatText.textContent = state.heat ? 'WANTED' : 'COLD';
+  ui.statusBar.style.width = `${state.status}%`; ui.statusText.textContent = String(Math.floor(state.status)).padStart(2, '0');
   const m=currentMission();ui.title.textContent=m.title;ui.description.textContent=m.description;ui.objective.textContent=m.objective;ui.missionCount.textContent=`${String(state.missionIndex+1).padStart(2,'0')} / 03`;ui.progress.style.width=`${m.progress}%`;
   const ammo=state.ammo[state.weapon];ui.weaponName.textContent=weapons[state.weapon].name;ui.weaponMode.textContent=state.reloading?'RELOADING…':weapons[state.weapon].mode;ui.ammoCurrent.textContent=ammo;ui.ammoReserve.textContent=state.reserve[state.weapon];
   const d=distanceTo(m.pos);ui.distance.textContent = d>999 ? `${(d/1000).toFixed(1)}km` : `${Math.floor(d)}m`;
@@ -274,6 +318,7 @@ function updateHUD() {
 function toast(message, type = '') { const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=message;ui.message.append(el);setTimeout(()=>el.remove(),3000); }
 function flash() { const f=document.querySelector('#flash');f.style.opacity='.26';setTimeout(()=>f.style.opacity='0',70); }
 function setHeat(amount) { state.heat=Math.max(0,Math.min(5,amount)); }
+function addStatus(amount) { state.status = Math.max(0, Math.min(100, state.status + amount)); }
 
 function nearestInteraction() {
   const pos=player.position; let nearest=null;let min=9.5;
@@ -293,7 +338,7 @@ function exitVehicle() {
   const v=state.vehicle;if(!v)return;player.position.copy(v.group.position);player.position.y=0;player.position.add(new THREE.Vector3(3,0,0).applyAxisAngle(new THREE.Vector3(0,1,0),v.group.rotation.y));player.visible=true;v.occupied=false;state.vehicle=null;toast('ON FOOT');
 }
 function performRaid(raid) {
-  if(raid.raided)return;raid.raided=true;raid.group.visible=false;state.money+=raid.cash;setHeat(Math.max(state.heat,3));toast(`RAID COMPLETE +${formatMoney(raid.cash)}`,'money');toast('CIVIC RESPONSE ESCALATING','raid');
+  if(raid.raided)return;raid.raided=true;raid.group.visible=false;state.money+=raid.cash;addStatus(18);setHeat(Math.max(state.heat,3));toast(`RAID COMPLETE +${formatMoney(raid.cash)}`,'money');toast('CIVIC RESPONSE ESCALATING','raid');
   burst(raid.pos,colors.red,25); if(currentMission().kind==='raid' && currentMission().pos.distanceTo(raid.pos)<30) advanceMission();
 }
 function interact() { const item=state.currentInteract;if(!item)return;if(item.type==='vehicle')enterVehicle(item.data);else if(item.type==='exit')exitVehicle();else if(item.type==='raid')performRaid(item.data);else if(item.type==='boss'){state.bossActive=true;toast('VIPER KANE ENGAGED','raid');} }
@@ -313,7 +358,7 @@ function enemyFire(enemy) {
   const target=player.position.clone();target.y+=2;const origin=enemy.pos.clone();origin.y+=2.8;const dir=target.sub(origin).normalize();const mesh=new THREE.Mesh(new THREE.SphereGeometry(.13,6,6),mats.red);mesh.position.copy(origin);scene.add(mesh);state.bullets.push({mesh,vel:dir.multiplyScalar(35),life:1.7,damage:boss===enemy?11:6,from:'enemy'});
 }
 function burst(pos,color,count=12) { for(let i=0;i<count;i++){const mesh=new THREE.Mesh(new THREE.SphereGeometry(.08+Math.random()*.14,5,5),material(color,{emissive:color,emissiveIntensity:1.5}));mesh.position.copy(pos).add(new THREE.Vector3(0,1.5,0));scene.add(mesh);state.particles.push({mesh,vel:new THREE.Vector3((Math.random()-.5)*10,Math.random()*8,(Math.random()-.5)*10),life:.65+Math.random()*.45});} }
-function killEnemy(enemy) { enemy.alive=false;scene.remove(enemy.group);burst(enemy.pos,enemy.isBoss?colors.red:colors.cyan,enemy.isBoss?32:12);if(enemy.isBoss){toast('VIPER KANE DOWN — +$4,000','money');state.money+=4000;setHeat(5);advanceMission();}else {state.money+=90;toast('THREAT NEUTRALIZED +$90','money');} }
+function killEnemy(enemy) { enemy.alive=false;scene.remove(enemy.group);burst(enemy.pos,enemy.isBoss?colors.red:colors.cyan,enemy.isBoss?32:12);if(enemy.isBoss){toast('VIPER KANE DOWN — +$4,000','money');state.money+=4000;addStatus(35);setHeat(5);advanceMission();}else {state.money+=90;addStatus(2);toast('THREAT NEUTRALIZED +$90','money');} }
 function takeDamage(amount) { if(state.time-state.lastDamage<.55)return;state.lastDamage=state.time;state.health=Math.max(0,state.health-amount);setHeat(Math.max(state.heat,2));flash();if(state.health<=0){state.health=100;state.money=Math.max(0,state.money-300);player.position.set(-21,0,-12);exitVehicle();toast('MEDICAL DROP — $300 RECOVERY FEE','raid');} }
 
 function updateBullets(dt) {
