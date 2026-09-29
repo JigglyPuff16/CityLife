@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>City Life</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#07131d"/>
+      <stop offset=".58" stop-color="#174655"/>
+      <stop offset="1" stop-color="#427f83"/>
+    </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#253c44"/>
+      <stop offset="1" stop-color="#07131d"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <circle cx="49" cy="14" r="8" fill="#f4c64e" opacity=".9"/>
+  <path d="M7 43V25h12v18M19 43V14h17v29M36 43V21h21v22" fill="#0a202c" stroke="#64e0e2" stroke-opacity=".62" stroke-width="1.4" stroke-linejoin="round"/>
+  <path d="M12 30h3m-3 6h3m12-15h3m-3 7h3m-3 7h3m14-8h3m-3 7h3" fill="none" stroke="#f4c64e" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M15 64 25 39h14l10 25Z" fill="url(#road)"/>
+  <path d="M32 45v5m0 5v6" fill="none" stroke="#f4c64e" stroke-width="2" stroke-linecap="round"/>
+  <path d="M24 47h16" fill="none" stroke="#64e0e2" stroke-opacity=".55" stroke-width="1"/>
+</svg>
